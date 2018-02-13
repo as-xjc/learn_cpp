@@ -22,7 +22,12 @@ int main() {
   test1->print();
 
   auto test11 = std::dynamic_pointer_cast<Test1>(test2);
-  test11->print();
+  if (test11) {
+    std::cout << "std::dynamic_pointer_cast<Test1>(test2) :";
+    test11->print();
+  } else {
+    std::cout << "std::dynamic_pointer_cast<Test1>(test2) fail" << std::endl;
+  }
 
   auto test22 = test2->shared_from_this();
   test22->print();

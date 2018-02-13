@@ -4,3 +4,4 @@ project(leanr_cpp)
 set(CMAKE_CXX_STANDARD 14)
 
 add_executable(enable_shared_from_this enable_shared_from_this.cpp)
+add_executable(lambda lambda.cpp)

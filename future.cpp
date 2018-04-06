@@ -4,7 +4,12 @@
 #include <functional>
 #include <iostream>
 
-std::map<int, std::function<bool()>> handlers;
+struct async_info {
+  std::function<bool()> checker;
+  std::function<void()> callback;
+};
+
+std::map<int, std::unique_ptr<async_info>> handlers;
 static int index_ = 0;
 
 template <typename RETURN>
@@ -12,15 +17,17 @@ void async_run(std::function<RETURN()>&& call, std::function<void(RETURN)>&& cb)
   auto f = std::async(std::launch::async, std::move(call));
   auto fu = std::make_shared<std::future<RETURN>>(std::move(f));
   auto callcb = std::make_shared<std::function<void(RETURN)>>(std::move(cb));
-  auto check = [callcb, fu]() -> bool {
-    if (fu->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-      (*callcb)(fu->get());
-      return true;
-    }
-    return false;
+
+  auto info = std::make_unique<async_info>();
+  info->checker = [fu]() -> bool {
+    return fu->wait_for(std::chrono::seconds(0)) == std::future_status::ready;
   };
 
-  handlers.emplace(index_++, std::move(check));
+  info->callback = [callcb, fu]() {
+    (*callcb)(fu->get());
+  };
+
+  handlers.emplace(index_++, std::move(info));
 };
 
 template <typename RETURN>
@@ -61,7 +68,8 @@ int main() {
     std::cout <<std::time(nullptr) <<  " run a loop" << std::endl;
     for (auto it = handlers.begin(); it != handlers.end(); ) {
       std::cout <<std::time(nullptr) <<  " checking " << it->first << std::endl;
-      if ((it->second)()) {
+      if (it->second->checker()) {
+        it->second->callback();
         it = handlers.erase(it);
       } else {
         ++it;
